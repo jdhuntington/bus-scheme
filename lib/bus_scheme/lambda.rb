@@ -14,14 +14,15 @@ module BusScheme
     end
 
     # execute body with args bound to formals
-    def call(*args)
+    def call(args)
       locals = if @formals.is_a? Sym # rest args
-                 { @formals => args.to_list }
+                 { @formals => args }
                else # regular arg list
-                 raise BusScheme::ArgumentError, "Wrong number of args:
+                 raise BusScheme::ArgumentError, "Wrong number of args: #{@called_as.inspect}
   expected #{@formals.size}, got #{args.size}
   #{BusScheme.stacktrace.join("\n")}" if @formals.length != args.length
-                 @formals.to_a.zip(args).to_hash
+                 # TODO: don't convert to an array first
+                 @formals.to_a.zip(args.to_a).to_hash
                end
 
       @frame = StackFrame.new(locals, @enclosing_scope, @called_as)
@@ -29,7 +30,7 @@ module BusScheme
       BusScheme.stack.push @frame
       begin
         val = @body.map{ |form| BusScheme.eval(form) }.last
-      rescue => e
+      rescue => e # TODO: ensure?
         raise e
         BusScheme.stack.pop
       end
@@ -49,7 +50,7 @@ module BusScheme
       @body = body
     end
 
-    def call(*args)
+    def call(args)
       BusScheme.stack.push StackFrame.new({}, BusScheme.current_scope, @called_as)
       begin
         val = @body.call(*args)
