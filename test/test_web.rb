@@ -5,8 +5,8 @@ require 'open-uri'
 if defined? BusScheme::Web::Resource
   module BusScheme
     module_function
-    def Web.web_server # need to expose this for MockRequest
-      @web_server
+    def Web.server # need to expose this for MockRequest
+      @server
     end
   end
 
@@ -15,9 +15,9 @@ if defined? BusScheme::Web::Resource
       @response = nil
 
       @die_roboter = "User-agent: *\nAllow: *"
-      eval "(defresource \"/robots.txt\" \"#{@die_roboter}\")"
+      eval! "(defresource \"/robots.txt\" \"#{@die_roboter}\")"
       
-      eval '(define concourse-splash (quote (html
+      eval! '(define concourse-splash (quote (html
 		(head
 		 (title "Concourse"))
 		(body
@@ -28,9 +28,19 @@ if defined? BusScheme::Web::Resource
 			    (input type "text" name "email")
 			    (input type "password" name "password")
 			    (input type "submit" value "Log in")))))))'
-      eval '(defresource "/" concourse-splash)'
+      eval! '(defresource "/" concourse-splash)'
 
-      eval '(defresource "/time" (lambda (env) (send (now) (quote to_s))))'
+      eval! '(defresource "/time" (lambda (env) (send (now) (quote to_s))))'
+
+      # a very basic rack app in scheme registered at "/simple"
+      simple_lambda = '(lambda (env) (quote ("200" ("Content-Type" "text/plain") "This is Simple")))'
+      @simple_app = eval!(simple_lambda)
+      eval! "(defwebapp \"/simple\" #{simple_lambda})"
+      
+      # this app returns the SERVER_INFO from the env passed to it
+      # TODO: come up with a better method for easily returning these values
+      eval! '(defwebapp "/who-am-i" (lambda (env)
+                                            (list "200" (quote ("Content-Type" "text/html")) (env "PATH_INFO"))))'
     end
     
     def test_serves_string_resource
@@ -54,9 +64,9 @@ Welcome to Concourse!      </h1>
       <p>
 Concourse is ...      </p>
       <form action=\"/login\">
-        <input type=\"text\" name=\"email\">
+        <input name=\"email\" type=\"text\">
         </input>
-        <input type=\"password\" name=\"password\">
+        <input name=\"password\" type=\"password\">
         </input>
         <input type=\"submit\" value=\"Log in\">
         </input>
@@ -115,16 +125,43 @@ Concourse is ...      </p>
       assert_response_code 404
     end
 
-    def test_returns_forbidden_when_unauthorized
+    def test_app_can_be_called
+      @simple_app.call({'PATH_INFO' => '/simple'})
     end
+    
+    def test_returns_status_code
+      get '/simple'
+      assert_response_code 200
+    end
+
+    def test_returns_content_type
+      get '/simple'
+      assert_equal 'text/plain', @response.headers['Content-Type']
+    end
+    
+    def test_returns_body
+      get '/simple'
+      assert_equal 'This is Simple', @response.body
+    end
+
+    def test_returning_environment_as_body
+      get '/who-am-i'
+      assert_equal "/who-am-i", @response.body
+      assert_equal 'text/html', @response.headers['Content-Type']
+      assert_response_code 200
+    end
+
+#     def test_returns_forbidden_when_unauthorized
+#     end
 
     def test_client
       assert BusScheme['http-method'].body
-      eval "(define root-string \"This is the root of our HTTP!\")
+      eval! "(define root-string \"This is the root of our HTTP!\")
 (defresource \"/\" root-string)
 
-(http-get \"http://localhost:2000/\")"
+(web-get \"http://localhost:2000/\")"
     end
+
     private
     
     def get(path)
@@ -144,7 +181,7 @@ Concourse is ...      </p>
     end
         
     def mock_request
-      Rack::MockRequest.new(BusScheme::Web.web_server)
+      Rack::MockRequest.new(BusScheme::Web.server)
     end
     
     def assert_response expected, message = nil

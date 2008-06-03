@@ -17,7 +17,7 @@ module BusScheme
   define '/', primitive { |x, y| x / y }
 
   define 'concat', primitive { |*args| args.join('') }
-  define 'cons', primitive { |*args| Cons.new(*args) }
+  define 'cons', primitive { |car, cdr| Cons.new(car, cdr) }
   define 'list', primitive { |*members| members.to_list }
   define 'vector', primitive { |*members| members.to_a }
   define 'map', primitive { |fn, list| list.map(lambda { |n| fn.call(cons(n)) }).sexp }
@@ -26,7 +26,8 @@ module BusScheme
   define 'now', primitive { Time.now }
   define 'regex', primitive { |r| Regexp.new(Regexp.escape(r)) }
 
-  define 'read', primitive { gets }
+  define 'read', primitive {|*args| args.empty? ? gets : File.read(args.first) }
+  # TODO: give read and write the same interface
   define 'write', primitive { |obj| puts obj.inspect; 0 }
   define 'display', primitive { |obj| puts obj }
   
@@ -49,8 +50,7 @@ module BusScheme
   special_form 'unquote-splicing', primitive { }
 
   # Primitives that can't be defined in terms of other forms:
-  # TODO: hacky to coerce everything to sexps... won't work once we start using vectors
-  special_form 'quote', primitive { |arg| arg.sexp }
+  special_form 'quote', primitive { |arg| arg }
   special_form 'if', primitive { |q, yes, *no| eval(eval(q) ? yes : cons(:begin.sym, no.sexp)) }
   special_form 'begin', primitive { |*args| args.map{ |arg| eval(arg) }.last }
   special_form 'top-level', BusScheme[:begin.sym]

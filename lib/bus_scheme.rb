@@ -42,6 +42,7 @@ module BusScheme
                input += "\n" + Readline.readline(INCOMPLETE_PROMPT)
                retry
              end
+             # TODO: persist readline history through sessions
              Readline::HISTORY.push(input)
              result
            rescue Interrupt
@@ -57,14 +58,12 @@ module BusScheme
 
   # Load a file if on the load path or absolute
   def self.load(filename)
-    begin
-      loaded_files.push filename
-      eval_string File.read(add_load_path(filename))
-      loaded_files.pop
-    rescue
-      loaded_files.pop
-      raise
-    end
+    loaded_files.push filename
+    eval_string File.read(add_load_path(filename))
+  rescue
+    puts BusScheme.stacktrace.join("\n  ")
+  ensure
+    loaded_files.pop
   end
 
   def self.add_load_path(filename, load_path = BusScheme['load-path'.sym])

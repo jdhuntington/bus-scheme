@@ -6,6 +6,7 @@ class Object
     return self
   end
 
+  # Most things are just themselves when converted to sexps
   def sexp(r = false)
     self
   end
@@ -13,7 +14,12 @@ class Object
   def special_form
     false
   end
+  undef_method :to_a if Object.respond_to? :to_a # this is deprecated anyway
 end
+
+# O HAI Booleans.
+class TrueClass; def inspect; '#t' end end
+class FalseClass; def inspect; '#f' end end
 
 module Callable
   # allows for (mylist 4) => mylist[4]
@@ -38,7 +44,7 @@ class String
   end
   
   def rest
-    return nil if self.length == 1
+    return '' if self.length == 1
     self[1, self.length]
   end
   

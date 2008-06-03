@@ -1,12 +1,12 @@
 (define select
   (lambda (fn lst)
-    (if lst
+    (if (not (null? lst))
 	(if (fn (car lst))
 	    (cons (car lst) (select fn (cdr lst)))
 	    (select fn (cdr lst))))))
 
 (define length (lambda (l)
-   (if (null? l) 0 (+ 1 (length (cdr l))))))
+   (if (empty? l) 0 (+ 1 (length (cdr l))))))
 
 (define append
   (lambda (l1 l2)

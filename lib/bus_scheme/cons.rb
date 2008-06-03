@@ -1,14 +1,30 @@
 module BusScheme
   class Cons
-    attr_accessor :car, :cdr
+    attr_writer :car, :cdr
 
+    def car
+      raise "Tried to access car of empty list." if empty?
+      @car
+    end
+
+    def cdr
+      raise "Tried to access cdr of empty list." if empty?
+      @cdr.nil? ? BusScheme.cons : @cdr
+    end
+
+    def empty?
+      @car.nil? and @cdr.nil?
+    end
+    
     def initialize(car, cdr)
       @car, @cdr = [car, cdr]
     end
 
     def ==(other)
-      other.respond_to?(:car) and @car == other.car and
-        other.respond_to?(:cdr) and @cdr == other.cdr
+      return false unless other.is_a?(Cons)
+      return true  if empty? && other.empty?
+      return false if empty? != other.empty?
+      car == other.car && cdr == other.cdr
     end
 
     alias_method :first, :car
@@ -77,10 +93,24 @@ module BusScheme
 
     # allows for (mylist 4) => (nth mylist 4)
     def call(nth)
-      nth = nth.car if nth.is_a? Cons # TODO: remove?
+      # Allow lists to be called with an argument list or a fixnum arg
+      nth = nth.car if nth.is_a? Cons
       nth == 0 ? @car : @cdr.call(nth - 1)
     end
     include Callable
+
+    # support for methods like caddar
+    def method_missing(sym)
+      sym = sym.to_s
+      raise NoMethodError unless sym =~ /^c([ad]+)r/
+      return send(sym) if sym.length == 3
+      case sym
+      when /^ca/
+        send(sym.sub('a', '')).car
+      when /^cd/
+        send(sym.sub('d', '')).cdr
+      end
+    end
   end
 
   def cons(car = nil, cdr = nil)
